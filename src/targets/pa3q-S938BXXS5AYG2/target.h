@@ -152,26 +152,28 @@
 #define LEFT_OFF 0x5550
 #define FAKE_TASK_OFF 0x3200
 
-/* Fake rt_mutex_waiter member offsets (from BTF) */
+/* Fake rt_mutex_waiter member offsets (from BTF of kernel 6.6.30) */
+/* struct rt_waiter_node { rb_node entry(24B), int prio(4B), u64 deadline(8B) } = 36B */
+/* struct rt_mutex_waiter { tree(36B), pi_tree(36B), task(8B), lock(8B), wake_state(4B), ww_ctx(8B) } = 104B */
 #define FAKE_WAITER_TREE_PRIO_OFF 0x18
-#define FAKE_WAITER_TREE_DEADLINE_OFF 0x20
-#define FAKE_WAITER_PI_TREE_ENTRY_OFF 0x28
-#define FAKE_WAITER_PI_TREE_PRIO_OFF 0x40
-#define FAKE_WAITER_PI_TREE_DEADLINE_OFF 0x48
-#define FAKE_WAITER_TASK_OFF 0x50
-#define FAKE_WAITER_LOCK_OFF 0x58
-#define FAKE_WAITER_WAKE_STATE_OFF 0x60
-#define FAKE_WAITER_WW_CTX_OFF 0x68
+#define FAKE_WAITER_TREE_DEADLINE_OFF 0x1c
+#define FAKE_WAITER_PI_TREE_ENTRY_OFF 0x24
+#define FAKE_WAITER_PI_TREE_PRIO_OFF 0x3c
+#define FAKE_WAITER_PI_TREE_DEADLINE_OFF 0x40
+#define FAKE_WAITER_TASK_OFF 0x48
+#define FAKE_WAITER_LOCK_OFF 0x50
+#define FAKE_WAITER_WAKE_STATE_OFF 0x58
+#define FAKE_WAITER_WW_CTX_OFF 0x60
 
-/* Fake task_struct member offsets (from BTF analysis of kernel 6.6.x) */
-#define FAKE_TASK_USAGE_OFF 0x110
-#define FAKE_TASK_PRIO_OFF 0x2a8
-#define FAKE_TASK_NORMAL_PRIO_OFF 0x2b0
+/* Fake task_struct member offsets (from BTF of kernel 6.6.30) */
+#define FAKE_TASK_USAGE_OFF 0x20
+#define FAKE_TASK_PRIO_OFF 0x74
+#define FAKE_TASK_NORMAL_PRIO_OFF 0x84
 #define FAKE_TASK_TASK_GROUP_OFF 0x348
-#define FAKE_TASK_PI_LOCK_OFF 0x90c
-#define FAKE_TASK_PI_WAITERS_OFF 0x920
-#define FAKE_TASK_PI_TOP_TASK_OFF 0x930
-#define FAKE_TASK_PI_BLOCKED_ON_OFF 0x938
+#define FAKE_TASK_PI_LOCK_OFF 0x4c0
+#define FAKE_TASK_PI_WAITERS_OFF 0x4d4
+#define FAKE_TASK_PI_TOP_TASK_OFF 0x4dc
+#define FAKE_TASK_PI_BLOCKED_ON_OFF 0x4e4
 
 /* Configfs binary file offsets */
 #define CFG_PAGE_OFF 16
