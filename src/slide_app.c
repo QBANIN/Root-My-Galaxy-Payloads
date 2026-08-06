@@ -427,8 +427,9 @@ void slide_pselect_stack_copy(void) {
           atomic_load(&slide_consume_last_sched_ret),
           atomic_load(&slide_consume_last_sched_errno));
 #endif
+  /* On some kernels pselect returns 0 (timeout) but slide still works */
   atomic_store(&slide_pselect_write_window,
-               ret > 0 && atomic_load(&slide_consume_sched_ok) > 0);
+               atomic_load(&slide_consume_sched_ok) > 0);
 
   close(high_read);
   if (block_fd != pipefd[0]) {
