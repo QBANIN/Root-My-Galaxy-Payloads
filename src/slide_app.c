@@ -1192,7 +1192,8 @@ static int slide_leak_physical_base(void) {
     return 0;
   }
   if (gate_result == 0) {
-    pr_warning("p0 physical pipe reclaim miss\n");
+    pr_warning("p0 physical pipe reclaim miss first_ops=%p expected=%p\n",
+               (void *)pipe_scan_first_ops, (void *)pipe_buf_ops_addr());
     return 0;
   }
   app_publish_p0_dirty();
