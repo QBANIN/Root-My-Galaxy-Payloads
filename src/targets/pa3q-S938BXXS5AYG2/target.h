@@ -152,29 +152,28 @@
 #define LEFT_OFF 0x5550
 #define FAKE_TASK_OFF 0x3200
 
-/* Fake rt_mutex_waiter member offsets (from BTF of kernel 6.6.30) */
-/* struct rt_waiter_node { rb_node entry(24B), int prio(4B), u64 deadline(8B) } = 36B */
-/* struct rt_mutex_waiter { tree(36B), pi_tree(36B), task(8B), lock(8B), wake_state(4B), ww_ctx(8B) } = 104B */
+/* Fake rt_mutex_waiter member offsets (verified from BTF of kernel 6.6.30) */
+/* struct rt_waiter_node { rb_node entry(24B), int prio(4B), u64 deadline(8B) } = 40B */
+/* struct rt_mutex_waiter { tree(40B), pi_tree(40B), task(8B), lock(8B), wake_state(4B), ww_ctx(8B) } = 112B */
 #define FAKE_WAITER_TREE_PRIO_OFF 0x18
-#define FAKE_WAITER_TREE_DEADLINE_OFF 0x1c
-#define FAKE_WAITER_PI_TREE_ENTRY_OFF 0x24
-#define FAKE_WAITER_PI_TREE_PRIO_OFF 0x3c
-#define FAKE_WAITER_PI_TREE_DEADLINE_OFF 0x40
-#define FAKE_WAITER_TASK_OFF 0x48
-#define FAKE_WAITER_LOCK_OFF 0x50
-#define FAKE_WAITER_WAKE_STATE_OFF 0x58
-#define FAKE_WAITER_WW_CTX_OFF 0x60
+#define FAKE_WAITER_TREE_DEADLINE_OFF 0x20
+#define FAKE_WAITER_PI_TREE_ENTRY_OFF 0x28
+#define FAKE_WAITER_PI_TREE_PRIO_OFF 0x40
+#define FAKE_WAITER_PI_TREE_DEADLINE_OFF 0x48
+#define FAKE_WAITER_TASK_OFF 0x40
+#define FAKE_WAITER_LOCK_OFF 0x48
+#define FAKE_WAITER_WAKE_STATE_OFF 0x50
+#define FAKE_WAITER_WW_CTX_OFF 0x54
 
-/* Fake task_struct member offsets (from BTF of kernel 6.6.30) */
-#define FAKE_TASK_USAGE_OFF 0x20
-#define FAKE_TASK_PRIO_OFF 0x74
-#define FAKE_TASK_NORMAL_PRIO_OFF 0x84
+/* Fake task_struct member offsets (verified from BTF of kernel 6.6.30) */
+#define FAKE_TASK_USAGE_OFF 0x40
+#define FAKE_TASK_PRIO_OFF 0xd4
+#define FAKE_TASK_NORMAL_PRIO_OFF 0xe0
 #define FAKE_TASK_TASK_GROUP_OFF 0x348
-#define FAKE_TASK_PI_LOCK_OFF 0x4c0
-#define FAKE_TASK_PI_WAITERS_OFF 0x4d4
-#define FAKE_TASK_PI_TOP_TASK_OFF 0x4dc
-#define FAKE_TASK_PI_BLOCKED_ON_OFF 0x4e4
-
+#define FAKE_TASK_PI_LOCK_OFF 0x900
+#define FAKE_TASK_PI_WAITERS_OFF 0x910
+#define FAKE_TASK_PI_TOP_TASK_OFF 0x920
+#define FAKE_TASK_PI_BLOCKED_ON_OFF 0x928
 /* Configfs binary file offsets */
 #define CFG_PAGE_OFF 16
 #define CFG_NEEDS_READ_FILL_OFF 80
