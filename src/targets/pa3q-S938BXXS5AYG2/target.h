@@ -167,13 +167,13 @@
 
 /* Fake task_struct member offsets (verified from BTF of kernel 6.6.30) */
 #define FAKE_TASK_USAGE_OFF 0x40
-#define FAKE_TASK_PRIO_OFF 0xd4
-#define FAKE_TASK_NORMAL_PRIO_OFF 0xe0
+#define FAKE_TASK_PRIO_OFF 0x84
+#define FAKE_TASK_NORMAL_PRIO_OFF 0x8c
 #define FAKE_TASK_TASK_GROUP_OFF 0xa00
-#define FAKE_TASK_PI_LOCK_OFF 0x900
-#define FAKE_TASK_PI_WAITERS_OFF 0x910
-#define FAKE_TASK_PI_TOP_TASK_OFF 0x920
-#define FAKE_TASK_PI_BLOCKED_ON_OFF 0x928
+#define FAKE_TASK_PI_LOCK_OFF 0x90c
+#define FAKE_TASK_PI_WAITERS_OFF 0x918
+#define FAKE_TASK_PI_TOP_TASK_OFF 0x928
+#define FAKE_TASK_PI_BLOCKED_ON_OFF 0x940
 /* Configfs binary file offsets */
 #define CFG_PAGE_OFF 16
 #define CFG_NEEDS_READ_FILL_OFF 80
