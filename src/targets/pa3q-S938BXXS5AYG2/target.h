@@ -21,7 +21,7 @@
 #define SKB_DATA_DELTA (-0xe80LL)
 #define SLIDE_FAKE_WAITER_PRIO 0
 #define SLIDE_WAITER_WAKE_STATE 0
-#define SLIDE_LOCK_OWNER_VALUE 1ULL
+#define SLIDE_LOCK_OWNER_VALUE 0ULL
 #define SLIDE_USE_FAKE_TASK 1
 
 /* Tracefs slide parameters - derived from S938N base, verify on target */
