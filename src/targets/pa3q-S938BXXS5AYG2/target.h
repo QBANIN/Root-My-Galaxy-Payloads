@@ -8,7 +8,7 @@
 #define BUILD_VARIANT_LABEL "pa3q-S938BXXS5AYG2-root-umh"
 #endif
 #ifndef BUILD_FINGERPRINT
-#define BUILD_FINGERPRINT "samsung/pa3qxxx/pa3q:16/BP4A.251205.006/S938BXXS5AYG2:user/release-keys"
+#define BUILD_FINGERPRINT "samsung/pa3qxeea/pa3q:15/AP3A.240905.015.A2/S938BXXS5AYG2_OXM5AYG2:user/release-keys"
 #endif
 
 /* ARM64 Image and memory layout */
@@ -23,7 +23,7 @@
 #define SLIDE_WAITER_WAKE_STATE 0
 #define SLIDE_LOCK_OWNER_VALUE 1ULL
 #define SLIDE_USE_FAKE_TASK 1
-#define MM_STRUCT_SZ 0x400
+#define MM_STRUCT_SZ 0x4c0
 #define MM_ORDER 3
 #define APP_SLIDE_MIN_OBJECT_INDEX 27
 #define APP_SLIDE_MAX_OBJECT_INDEX 30
