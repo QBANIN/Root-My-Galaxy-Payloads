@@ -869,7 +869,12 @@ static int slide_child_trigger_write(void) {
       usleep(SLIDE_REQUEUE_POLL_USEC);
     }
   }
-  if (requeue_ret != -1 || requeue_errno != EDEADLK) {
+  pr_info("slide trigger_write cmp_requeue_pi ret=%ld errno=%d polls=%d "
+          "waiter_waiting=%d owner_started=%d\n",
+          requeue_ret, requeue_errno, requeue_polls,
+          atomic_load(&slide_waiter_waiting),
+          atomic_load(&slide_owner_started));
+  if (requeue_ret <= 0) {
     return 0;
   }
   atomic_store(&slide_deadlock_seen, 1);
